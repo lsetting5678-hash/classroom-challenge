@@ -12,6 +12,8 @@
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
   <!-- Canvas Confetti -->
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <!-- QRious QR Code Generator -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
   <!-- Custom CSS -->
   <link rel="stylesheet" href="style.css">
 </head>
@@ -80,6 +82,7 @@
         <div class="info-badge online-badge">
           <i class="fa-solid fa-users"></i> 在線學生：<span id="online-count">0</span> 人
         </div>
+        <button class="qr-trigger-btn" onclick="openQrModal()"><i class="fa-solid fa-qrcode"></i> 顯示條碼</button>
         <button class="reset-btn" onclick="confirmResetRoom()"><i class="fa-solid fa-trash-can"></i> 清除資料</button>
       </div>
     </header>
@@ -290,6 +293,22 @@
       <button class="nav-btn submit-btn" onclick="submitStudentQuiz()">
         發射數據送出！ <i class="fa-solid fa-paper-plane"></i>
       </button>
+    </div>
+  </div>
+
+  <!-- QR Code Modal -->
+  <div id="qr-modal" class="modal-overlay hidden" onclick="closeQrModal()">
+    <div class="modal-content glass fade-in" onclick="event.stopPropagation()">
+      <button class="close-modal-btn" onclick="closeQrModal()">&times;</button>
+      <h2><i class="fa-solid fa-qrcode"></i> 學生掃碼加入房間</h2>
+      <p class="subtitle">請使用平板或手機掃描二維碼，即可免輸入代碼直接加入房間作答：</p>
+      <div class="qr-container">
+        <canvas id="qr-canvas"></canvas>
+      </div>
+      <div class="qr-link-wrapper">
+        <input type="text" id="qr-link-input" readonly>
+        <button onclick="copyQrLink()"><i class="fa-solid fa-copy"></i> 複製連結</button>
+      </div>
     </div>
   </div>
 

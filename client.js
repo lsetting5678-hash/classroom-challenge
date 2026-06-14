@@ -122,6 +122,25 @@ function startTeacherMode() {
   // Load existing records from LocalStorage (for stability across page refreshes)
   updateDashboard();
 
+  // Generate QR Code for student quick login
+  const studentUrl = window.location.origin + window.location.pathname + '?room=' + roomInput;
+  document.getElementById('qr-link-input').value = studentUrl;
+
+  try {
+    new QRious({
+      element: document.getElementById('qr-canvas'),
+      value: studentUrl,
+      size: 260,
+      level: 'H',
+      foreground: '#46178f',
+      background: '#ffffff'
+    });
+    // Auto-open QR Code Modal so teacher can project it immediately
+    openQrModal();
+  } catch (e) {
+    console.error("QR Code generation failed: ", e);
+  }
+
   // Initialize MQTT
   mqttClient = initMqtt('teacher', (client) => {
     const subTopic = `classroom_challenge/rooms/${currentRoom}/submissions`;
@@ -579,3 +598,39 @@ function startDictation() {
 
   recognition.start();
 }
+
+// ---------------- QR Code Modal Helpers ----------------
+function openQrModal() {
+  document.getElementById('qr-modal').classList.remove('hidden');
+}
+
+function closeQrModal() {
+  document.getElementById('qr-modal').classList.add('hidden');
+}
+
+function copyQrLink() {
+  const linkInput = document.getElementById('qr-link-input');
+  linkInput.select();
+  linkInput.setSelectionRange(0, 99999); // For mobile devices
+  
+  try {
+    navigator.clipboard.writeText(linkInput.value);
+    showToast("連結複製成功！");
+  } catch (err) {
+    // Fallback copy method
+    document.execCommand('copy');
+    showToast("連結複製成功！");
+  }
+}
+
+// ---------------- URL Query Parameter Auto-Fill ----------------
+window.addEventListener('DOMContentLoaded', () => {
+  const urlParams = new URLSearchParams(window.location.search);
+  const roomParam = urlParams.get('room');
+  if (roomParam) {
+    showStudentSetup();
+    document.getElementById('student-room-input').value = roomParam;
+    showToast("已自動載入房間代碼：" + roomParam);
+  }
+});
+
