@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🌟 期末大挑戰 - 互動即時系統</title>
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- MQTT.js Client -->
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+  <!-- Canvas Confetti -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Background decorations -->
+  <div class="bg-glow bg-glow-1"></div>
+  <div class="bg-glow bg-glow-2"></div>
+
+  <!-- 1. Role Selection Screen -->
+  <div id="role-selection" class="card fade-in">
+    <div class="emoji-header">🌟</div>
+    <h1>互動課堂大挑戰</h1>
+    <p class="subtitle">請選擇您的身分，開始即時課堂互動：</p>
+    
+    <div class="btn-group">
+      <button class="role-btn teacher-theme" onclick="showTeacherSetup()">
+        <span class="btn-icon"><i class="fa-solid fa-chalkboard-user"></i></span>
+        <span class="btn-text">
+          <strong>我是老師</strong>
+          <span>開創互動房間，投放看板</span>
+        </span>
+      </button>
+      
+      <button class="role-btn student-theme" onclick="showStudentSetup()">
+        <span class="btn-icon"><i class="fa-solid fa-user-graduate"></i></span>
+        <span class="btn-text">
+          <strong>我是學生</strong>
+          <span>輸入代碼，加入挑戰</span>
+        </span>
+      </button>
+    </div>
+  </div>
+
+  <!-- 2. Teacher Setup Screen -->
+  <div id="teacher-setup" class="card setup-card hidden fade-in">
+    <button class="back-btn" onclick="showRoleSelection()"><i class="fa-solid fa-arrow-left"></i> 返回</button>
+    <div class="emoji-header">🏫</div>
+    <h2>設定互動房間</h2>
+    <p class="subtitle">請輸入一個好記的房間代碼 (如: 1234)</p>
+    
+    <div class="input-wrapper">
+      <i class="fa-solid fa-hashtag input-icon"></i>
+      <input type="text" id="teacher-room-input" placeholder="房間代碼" autocomplete="off" maxlength="8">
+    </div>
+    
+    <button class="action-btn teacher-theme" onclick="startTeacherMode()">
+      啟動大螢幕看板 <i class="fa-solid fa-rocket"></i>
+    </button>
+  </div>
+
+  <!-- 3. Teacher Dashboard Screen -->
+  <div id="teacher-dashboard" class="hidden">
+    <header class="dashboard-header">
+      <div class="header-left">
+        <h1><i class="fa-solid fa-chart-line"></i> 期末大挑戰 - 即時數據中心</h1>
+      </div>
+      <div class="header-right">
+        <div class="info-badge room-badge">
+          <i class="fa-solid fa-door-open"></i> 房間代碼：<span id="display-room-code">---</span>
+        </div>
+        <div class="info-badge status-badge">
+          <div class="pulse-dot"></div>
+          <i class="fa-solid fa-paper-plane"></i> 收到作答：<span id="total-responses">0</span> 份
+        </div>
+        <div class="info-badge online-badge">
+          <i class="fa-solid fa-users"></i> 在線學生：<span id="online-count">0</span> 人
+        </div>
+        <button class="reset-btn" onclick="confirmResetRoom()"><i class="fa-solid fa-trash-can"></i> 清除資料</button>
+      </div>
+    </header>
+
+    <div class="dashboard-grid">
+      <!-- Q2 Chart Card -->
+      <div class="chart-card glass">
+        <div class="chart-title">
+          <i class="fa-solid fa-lightbulb"></i> Q2. 最受歡迎的課程單元
+        </div>
+        <div class="chart-container" id="chart-q2"></div>
+      </div>
+
+      <!-- Q3 Leaderboard Card -->
+      <div class="chart-card glass">
+        <div class="chart-title">
+          <i class="fa-solid fa-handshake"></i> Q3. 最佳神隊友提名榜
+        </div>
+        <div class="leaderboard-wrapper">
+          <ul class="leaderboard" id="chart-q3"></ul>
+          <div id="q3-empty" class="empty-state"><i class="fa-solid fa-medal"></i> 尚無投票數據</div>
+        </div>
+      </div>
+
+      <!-- Q4 Chart Card -->
+      <div class="chart-card glass">
+        <div class="chart-title">
+          <i class="fa-solid fa-arrow-trend-up"></i> Q4. 進步最多班級排名
+        </div>
+        <div class="chart-container" id="chart-q4"></div>
+      </div>
+
+      <!-- Q5 Chart Card -->
+      <div class="chart-card glass">
+        <div class="chart-title">
+          <i class="fa-solid fa-bullseye"></i> Q5. 新學年超人目標
+        </div>
+        <div class="chart-container" id="chart-q5"></div>
+      </div>
+
+      <!-- Q6 Message Wall Card -->
+      <div class="chart-card glass message-wall-card">
+        <div class="chart-title">
+          <i class="fa-solid fa-comments"></i> Q6. 學生悄悄話 (給老師的話)
+        </div>
+        <div class="message-wall" id="chart-q6"></div>
+        <div id="q6-empty" class="empty-state"><i class="fa-solid fa-comment-slash"></i> 尚無留言內容</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. Student Setup Screen -->
+  <div id="student-setup" class="card setup-card hidden fade-in">
+    <button class="back-btn" onclick="showRoleSelection()"><i class="fa-solid fa-arrow-left"></i> 返回</button>
+    <div class="emoji-header">🎒</div>
+    <h2>準備進入挑戰房間</h2>
+    
+    <div class="input-wrapper">
+      <i class="fa-solid fa-hashtag input-icon"></i>
+      <input type="text" id="student-room-input" placeholder="請輸入老師給的房間代碼" autocomplete="off" maxlength="8">
+    </div>
+
+    <h3 class="section-title">請選擇你的班級</h3>
+    <div class="options-grid class-select-grid" id="setup-class-grid">
+      <div class="option-card single-select" data-val="101" onclick="selectSingle(this, 'setup-class-grid')">101</div>
+      <div class="option-card single-select" data-val="106" onclick="selectSingle(this, 'setup-class-grid')">106</div>
+      <div class="option-card single-select" data-val="205" onclick="selectSingle(this, 'setup-class-grid')">205</div>
+      <div class="option-card single-select" data-val="301" onclick="selectSingle(this, 'setup-class-grid')">301</div>
+      <div class="option-card single-select" data-val="404" onclick="selectSingle(this, 'setup-class-grid')">404</div>
+    </div>
+
+    <button class="action-btn student-theme" onclick="startStudentQuiz()">
+      進入房間 🚪
+    </button>
+  </div>
+
+  <!-- 5. Student Quiz Container -->
+  <div id="student-quiz-container" class="student-container hidden fade-in">
+    <!-- Progress Indicator -->
+    <div class="quiz-progress-wrapper">
+      <div class="progress-info">
+        <span class="progress-text">問題 <span id="current-step-num">1</span> / 5</span>
+        <span class="progress-percent" id="current-step-pct">0%</span>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill" id="quiz-progress"></div>
+      </div>
+    </div>
+
+    <!-- Q2 -->
+    <div id="step-q2" class="quiz-step">
+      <div class="question-header">
+        <span class="q-num">Q2</span>
+        <h2 class="question-title">最喜歡哪一個單元？ <span class="badge badge-multi">可複選</span></h2>
+      </div>
+      <div class="options-grid large-grid">
+        <div class="option-card multi-select" data-val="1. 網路安全守則" onclick="toggleMulti(this)">
+          <div class="card-icon"><i class="fa-solid fa-shield-halved"></i></div>
+          <div class="card-text">1. 網路安全守則</div>
+        </div>
+        <div class="option-card multi-select" data-val="2. 我的社交超能力" onclick="toggleMulti(this)">
+          <div class="card-icon"><i class="fa-solid fa-mask"></i></div>
+          <div class="card-text">2. 我的社交超能力</div>
+        </div>
+        <div class="option-card multi-select" data-val="3. 幸福商店模擬" onclick="toggleMulti(this)">
+          <div class="card-icon"><i class="fa-solid fa-store"></i></div>
+          <div class="card-text">3. 幸福商店模擬</div>
+        </div>
+        <div class="option-card multi-select" data-val="4. 母親節感恩手作" onclick="toggleMulti(this)">
+          <div class="card-icon"><i class="fa-solid fa-heart"></i></div>
+          <div class="card-text">4. 母親節感恩手作</div>
+        </div>
+        <div class="option-card multi-select" data-val="5. 說話小火車" onclick="toggleMulti(this)">
+          <div class="card-icon"><i class="fa-solid fa-train"></i></div>
+          <div class="card-text">5. 說話小火車</div>
+        </div>
+        <div class="option-card multi-select" data-val="6. 考試前應對策略" onclick="toggleMulti(this)">
+          <div class="card-icon"><i class="fa-solid fa-file-signature"></i></div>
+          <div class="card-text">6. 考試前應對策略</div>
+        </div>
+        <div class="option-card multi-select" data-val="7. 專注力遊戲" onclick="toggleMulti(this)">
+          <div class="card-icon"><i class="fa-solid fa-bullseye"></i></div>
+          <div class="card-text">7. 專注力遊戲</div>
+        </div>
+      </div>
+      <button class="nav-btn" onclick="nextStep('step-q3')">下一題 <i class="fa-solid fa-arrow-right"></i></button>
+    </div>
+
+    <!-- Q3 -->
+    <div id="step-q3" class="quiz-step hidden">
+      <div class="question-header">
+        <span class="q-num">Q3</span>
+        <h2 class="question-title">覺得哪一班的同學最好相處？ <span class="badge badge-multi">可複選</span></h2>
+      </div>
+      <p class="question-subtitle"><i class="fa-solid fa-circle-info"></i> 已為您排除您自己的班級</p>
+      <div class="options-grid class-options-grid" id="q3-grid">
+        <div class="option-card multi-select class-opt" data-val="101" onclick="toggleMulti(this)">101</div>
+        <div class="option-card multi-select class-opt" data-val="106" onclick="toggleMulti(this)">106</div>
+        <div class="option-card multi-select class-opt" data-val="205" onclick="toggleMulti(this)">205</div>
+        <div class="option-card multi-select class-opt" data-val="301" onclick="toggleMulti(this)">301</div>
+        <div class="option-card multi-select class-opt" data-val="404" onclick="toggleMulti(this)">404</div>
+      </div>
+      <button class="nav-btn" onclick="nextStep('step-q4')">下一題 <i class="fa-solid fa-arrow-right"></i></button>
+    </div>
+
+    <!-- Q4 -->
+    <div id="step-q4" class="quiz-step hidden">
+      <div class="question-header">
+        <span class="q-num">Q4</span>
+        <h2 class="question-title">覺得哪一班這學期進步最多？ <span class="badge badge-single">單選</span></h2>
+      </div>
+      <p class="question-subtitle"><i class="fa-solid fa-circle-info"></i> 已為您排除您自己的班級</p>
+      <div class="options-grid class-options-grid" id="q4-grid">
+        <div class="option-card single-select class-opt" data-val="101" onclick="selectSingle(this, 'q4-grid')">101</div>
+        <div class="option-card single-select class-opt" data-val="106" onclick="selectSingle(this, 'q4-grid')">106</div>
+        <div class="option-card single-select class-opt" data-val="205" onclick="selectSingle(this, 'q4-grid')">205</div>
+        <div class="option-card single-select class-opt" data-val="301" onclick="selectSingle(this, 'q4-grid')">301</div>
+        <div class="option-card single-select class-opt" data-val="404" onclick="selectSingle(this, 'q4-grid')">404</div>
+      </div>
+      <button class="nav-btn" onclick="nextStep('step-q5')">下一題 <i class="fa-solid fa-arrow-right"></i></button>
+    </div>
+
+    <!-- Q5 -->
+    <div id="step-q5" class="quiz-step hidden">
+      <div class="question-header">
+        <span class="q-num">Q5</span>
+        <h2 class="question-title">新學年，想給自己設定哪個超人目標？ <span class="badge badge-single">單選</span></h2>
+      </div>
+      <div class="options-grid large-grid" id="q5-grid">
+        <div class="option-card single-select" data-val="A. 情緒穩定" onclick="selectSingle(this, 'q5-grid')">
+          <div class="card-icon color-red-text"><i class="fa-solid fa-circle-dot"></i></div>
+          <div class="card-text"><strong>A. 情緒穩定</strong><span>遇到挫折時閉眼深呼吸</span></div>
+        </div>
+        <div class="option-card single-select" data-val="B. 溝通表達" onclick="selectSingle(this, 'q5-grid')">
+          <div class="card-icon color-blue-text"><i class="fa-solid fa-train-subway"></i></div>
+          <div class="card-text"><strong>B. 溝通表達</strong><span>利用說話小火車表達心情</span></div>
+        </div>
+        <div class="option-card single-select" data-val="C. 勇敢求助" onclick="selectSingle(this, 'q5-grid')">
+          <div class="card-icon color-yellow-text"><i class="fa-solid fa-hands-clapping"></i></div>
+          <div class="card-text"><strong>C. 勇敢求助</strong><span>遇到困難時勇敢舉手發問</span></div>
+        </div>
+        <div class="option-card single-select" data-val="D. 自訂目標" onclick="selectSingle(this, 'q5-grid')">
+          <div class="card-icon color-green-text"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+          <div class="card-text"><strong>D. 我自己決定！</strong><span>為自己訂立專屬的挑戰</span></div>
+        </div>
+      </div>
+      <button class="nav-btn" onclick="nextStep('step-q6')">下一題 <i class="fa-solid fa-arrow-right"></i></button>
+    </div>
+
+    <!-- Q6 -->
+    <div id="step-q6" class="quiz-step hidden">
+      <div class="question-header">
+        <span class="q-num">Q6</span>
+        <h2 class="question-title">最後，我想對老師說... <span class="badge badge-optional">選填</span></h2>
+      </div>
+      
+      <div class="speech-input-area">
+        <button id="mic-btn" class="mic-btn" onclick="startDictation()">
+          <i class="fa-solid fa-microphone"></i> <span>點我語音輸入</span>
+        </button>
+        <span id="mic-status" class="mic-status"></span>
+      </div>
+      
+      <div class="textarea-wrapper">
+        <textarea id="q6-text" rows="4" placeholder="可以直接在這裡打字，或點擊上方麥克風說話。寫下想對老師說的心裡話吧！"></textarea>
+      </div>
+      
+      <button class="nav-btn submit-btn" onclick="submitStudentQuiz()">
+        發射數據送出！ <i class="fa-solid fa-paper-plane"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- Custom JavaScript -->
+  <script src="client.js"></script>
+</body>
+</html>
