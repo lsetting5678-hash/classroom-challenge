@@ -81,7 +81,7 @@ function initMqtt(clientIdPrefix, onConnectCallback) {
   showToast("正在連線到即時網路服務...");
   
   // Using public EMQX secure WebSockets broker
-  const client = mqtt.connect('wss://broker.emqx.io:8086/mqtt', {
+  const client = mqtt.connect('wss://broker.emqx.io:8084/mqtt', {
     clientId: clientId,
     clean: true,
     connectTimeout: 5000,
