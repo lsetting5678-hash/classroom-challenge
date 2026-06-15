@@ -19,6 +19,7 @@ let studentClientId = '';
 let heartbeatInterval = null;
 let currentStep = 1;
 const totalSteps = 5; // Q2, Q3, Q4, Q5, Q6
+let studentGasUrl = ''; // Google Apps Script URL for home answering
 
 // MQTT Client Configuration
 let mqttClient = null;
@@ -122,8 +123,19 @@ function startTeacherMode() {
   // Load existing records from LocalStorage (for stability across page refreshes)
   updateDashboard();
 
+  // Save or clean GAS API URL
+  const gasInput = document.getElementById('teacher-gas-input') ? document.getElementById('teacher-gas-input').value.trim() : '';
+  if (gasInput) {
+    localStorage.setItem('cc_gas_api_url', gasInput);
+  } else {
+    localStorage.removeItem('cc_gas_api_url');
+  }
+
   // Generate QR Code for student quick login
-  const studentUrl = window.location.origin + window.location.pathname + '?room=' + roomInput;
+  let studentUrl = window.location.origin + window.location.pathname + '?room=' + roomInput;
+  if (gasInput) {
+    studentUrl += '&api=' + encodeURIComponent(gasInput);
+  }
   document.getElementById('qr-link-input').value = studentUrl;
 
   try {
@@ -352,12 +364,49 @@ function submitStudentQuiz() {
   const record = {
     id: studentClass + '_' + studentClientId + '_' + Date.now(),
     timestamp: Date.now(),
+    room: currentRoom, // Include room code for Google Sheets identification
     studentClass: studentClass,
     q2: ansQ2,
     q3: ansQ3,
     q4: ansQ4,
     q5: ansQ5,
     q6: ansQ6
+  };
+
+  // Helper function to complete submission flow
+  const completeSubmission = () => {
+    // Clean up local heartbeat
+    if (heartbeatInterval) clearInterval(heartbeatInterval);
+    if (mqttClient) {
+      try { mqttClient.end(); } catch (e) {}
+    }
+    // Show success screen with massive confetti
+    showSuccessScreen();
+  };
+
+  // Send to Google Sheets if API URL is set
+  const sendToGas = () => {
+    if (studentGasUrl) {
+      showToast("正在儲存資料到試算表...");
+      fetch(studentGasUrl, {
+        method: 'POST',
+        mode: 'no-cors', // standard GAS redirect behavior bypass
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(record)
+      })
+      .then(() => {
+        completeSubmission();
+      })
+      .catch(err => {
+        console.error("GAS submission error: ", err);
+        // Even if GAS fails, we still complete the flow
+        completeSubmission();
+      });
+    } else {
+      completeSubmission();
+    }
   };
 
   // Publish to MQTT
@@ -369,16 +418,15 @@ function submitStudentQuiz() {
         alert("傳送失敗，請重新送出！");
         return;
       }
-      
-      // Clean up local heartbeat
-      if (heartbeatInterval) clearInterval(heartbeatInterval);
-      if (mqttClient) mqttClient.end();
-      
-      // Show success screen with massive confetti
-      showSuccessScreen();
+      sendToGas();
     });
   } else {
-    alert("連線中斷，請重新整理頁面。");
+    // If MQTT client is not ready (e.g. at home), try sending to GAS directly
+    if (studentGasUrl) {
+      sendToGas();
+    } else {
+      alert("連線中斷，請重新整理頁面。");
+    }
   }
 }
 
@@ -625,8 +673,20 @@ function copyQrLink() {
 
 // ---------------- URL Query Parameter Auto-Fill ----------------
 window.addEventListener('DOMContentLoaded', () => {
+  // Restore teacher GAS URL if saved
+  const savedGas = localStorage.getItem('cc_gas_api_url');
+  if (savedGas && document.getElementById('teacher-gas-input')) {
+    document.getElementById('teacher-gas-input').value = savedGas;
+  }
+
   const urlParams = new URLSearchParams(window.location.search);
   const roomParam = urlParams.get('room');
+  const apiParam = urlParams.get('api');
+  
+  if (apiParam) {
+    studentGasUrl = apiParam;
+  }
+
   if (roomParam) {
     showStudentSetup();
     document.getElementById('student-room-input').value = roomParam;
